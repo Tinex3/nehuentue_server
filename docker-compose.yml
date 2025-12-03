@@ -121,8 +121,9 @@ services:
     restart: unless-stopped
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-iot_user}:${POSTGRES_PASSWORD:-iot_password}@db:5432/${POSTGRES_DB:-iot_security}
-      MODEL_PATH: /app/models
-      CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-0.7}
+      MODEL_PATH: /app/models/detect.tflite
+      LABELS_PATH: /app/models/labels.txt
+      CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-0.5}
     volumes:
       - ./ai:/app
       - ./ai/models:/app/models
