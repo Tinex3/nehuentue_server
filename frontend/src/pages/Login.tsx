@@ -8,43 +8,27 @@ import { Button } from '../components/ui/Button';
 import toast from 'react-hot-toast';
 
 export const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
 
   const loginMutation = useMutation({
-    mutationFn: (credentials: { email: string; password: string }) => 
-      authService.login(credentials.email, credentials.password),
+    mutationFn: (credentials: { username: string; password: string }) => 
+      authService.login(credentials.username, credentials.password),
     onSuccess: (data) => {
       setAuth(data.user, data.access_token, data.refresh_token);
       toast.success('¡Bienvenido!');
       navigate('/dashboard');
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Error al iniciar sesión');
+      toast.error(error.response?.data?.error || 'Error al iniciar sesión');
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // BYPASS PARA PRUEBAS - Usuario hardcodeado
-    if (email === 'benjamin@benjamin.cl' && password === '12345678') {
-      const mockUser = {
-        user_id: 1,
-        username: 'benjamin',
-        email: 'benjamin@benjamin.cl',
-        created_at: new Date().toISOString(),
-      };
-      setAuth(mockUser, 'mock-access-token', 'mock-refresh-token');
-      toast.success('¡Bienvenido Benjamin!');
-      navigate('/dashboard');
-      return;
-    }
-    
-    // Login real con API
-    loginMutation.mutate({ email, password });
+    loginMutation.mutate({ username, password });
   };
 
   return (
@@ -60,11 +44,11 @@ export const Login = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
-            type="email"
-            label="Correo Electrónico"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="usuario@ejemplo.com"
+            type="text"
+            label="Usuario"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="tu_usuario"
             required
           />
 
@@ -101,7 +85,7 @@ export const Login = () => {
         {/* Test credentials hint */}
         <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
           <p className="text-xs text-yellow-800 text-center">
-            <strong>Pruebas:</strong> benjamin@benjamin.cl / 12345678
+            <strong>Pruebas:</strong> benjamin / 12345678
           </p>
         </div>
       </div>
