@@ -16,6 +16,8 @@ paho-mqtt==1.6.1
 # Validación
 marshmallow==3.20.1
 marshmallow-sqlalchemy==0.29.0
+flask-marshmallow==0.15.0
+flask-marshmallow==0.15.0
 
 # Utilidades
 python-dotenv==1.0.0
