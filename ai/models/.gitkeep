@@ -1,0 +1,7 @@
+# Directorio para modelos TFLite
+# Descargar modelos de detección de objetos aquí
+
+# Modelo recomendado: MobileNet SSD
+# https://tfhub.dev/tensorflow/lite-model/ssd_mobilenet_v1/1/metadata/2
+
+# Colocar el archivo .tflite en este directorio

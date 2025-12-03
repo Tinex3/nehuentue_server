@@ -1,0 +1,9 @@
+# Archivo de contraseñas para Mosquitto
+# Para generar contraseñas encriptadas, ejecutar:
+# docker exec mqtt mosquitto_passwd -c /mosquitto/config/passwd backend
+# docker exec mqtt mosquitto_passwd /mosquitto/config/passwd worker
+# docker exec mqtt mosquitto_passwd /mosquitto/config/passwd device
+# docker exec mqtt mosquitto_passwd /mosquitto/config/passwd camera
+
+# Formato: usuario:contraseña_encriptada
+# Este archivo es solo de ejemplo, generar el real con mosquitto_passwd

@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  # ============================================
+  # Base de datos PostgreSQL
+  # ============================================
+  db:
+    image: postgres:15-alpine
+    container_name: iot_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-iot_security}
+      POSTGRES_USER: ${POSTGRES_USER:-iot_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-iot_password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - iot_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-iot_user} -d ${POSTGRES_DB:-iot_security}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ============================================
+  # Broker MQTT - Mosquitto
+  # ============================================
+  mqtt:
+    image: eclipse-mosquitto:2
+    container_name: iot_mqtt
+    restart: unless-stopped
+    volumes:
+      - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mqtt/acl:/mosquitto/config/acl:ro
+      - ./mqtt/passwd:/mosquitto/config/passwd:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    ports:
+      - "1883:1883"   # MQTT
+      - "9001:9001"   # WebSocket
+    networks:
+      - iot_network
+    healthcheck:
+      test: ["CMD", "mosquitto_sub", "-t", "$$SYS/#", "-C", "1", "-i", "healthcheck", "-W", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Backend REST API - Flask
+  # ============================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: iot_backend
+    restart: unless-stopped
+    environment:
+      FLASK_ENV: ${FLASK_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-iot_user}:${POSTGRES_PASSWORD:-iot_password}@db:5432/${POSTGRES_DB:-iot_security}
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_BACKEND_USER:-backend}
+      MQTT_PASSWORD: ${MQTT_BACKEND_PASSWORD:-backend123}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-super-secret-key-change-in-production}
+      AI_SERVICE_URL: http://ai:5001
+    volumes:
+      - ./backend:/app
+      - evidences_data:/app/evidences
+    ports:
+      - "5000:5000"
+    depends_on:
+      db:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+    networks:
+      - iot_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Worker MQTT - Procesador de eventos
+  # ============================================
+  worker:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    container_name: iot_worker
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-iot_user}:${POSTGRES_PASSWORD:-iot_password}@db:5432/${POSTGRES_DB:-iot_security}
+      MQTT_BROKER: mqtt
+      MQTT_PORT: 1883
+      MQTT_USER: ${MQTT_WORKER_USER:-worker}
+      MQTT_PASSWORD: ${MQTT_WORKER_PASSWORD:-worker123}
+      BACKEND_URL: http://backend:5000
+      AI_SERVICE_URL: http://ai:5001
+    volumes:
+      - ./worker:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      mqtt:
+        condition: service_started
+      backend:
+        condition: service_started
+    networks:
+      - iot_network
+
+  # ============================================
+  # Servicio de IA - Detección de objetos
+  # ============================================
+  ai:
+    build:
+      context: ./ai
+      dockerfile: Dockerfile
+    container_name: iot_ai
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-iot_user}:${POSTGRES_PASSWORD:-iot_password}@db:5432/${POSTGRES_DB:-iot_security}
+      MODEL_PATH: /app/models
+      CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-0.7}
+    volumes:
+      - ./ai:/app
+      - ./ai/models:/app/models
+      - evidences_data:/app/evidences:ro
+    ports:
+      - "5001:5001"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - iot_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Frontend - React Dashboard
+  # ============================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: iot_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - iot_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+# ============================================
+# Redes
+# ============================================
+networks:
+  iot_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# ============================================
+# Volúmenes persistentes
+# ============================================
+volumes:
+  postgres_data:
+    driver: local
+  mosquitto_data:
+    driver: local
+  mosquitto_log:
+    driver: local
+  evidences_data:
+    driver: local

@@ -1,0 +1,27 @@
+# ACL para Sistema de Seguridad IoT
+
+# Usuario backend - acceso total
+user backend
+topic readwrite #
+
+# Usuario worker - acceso total para procesar mensajes
+user worker
+topic readwrite #
+
+# Usuario para dispositivos IoT (ESP32/PIR/Cámaras)
+user device
+topic write devices/+/status
+topic write devices/+/telemetry
+topic write events/motion
+topic read commands/#
+
+# Usuario para cámaras
+user camera
+topic write cameras/+/frame
+topic write cameras/+/status
+topic read commands/cameras/#
+
+# Patrón para dispositivos con ID específico
+pattern write devices/%u/status
+pattern write devices/%u/telemetry
+pattern read commands/%u/#
