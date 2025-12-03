@@ -47,13 +47,13 @@ class FakeSecuritySystem:
         self.relay_state = False
         self.event_count = 0
         
-        # Topics MQTT
+        # Topics MQTT - Alineados con el worker
         self.topics = {
-            "pir": f"iot/zone/{config['zone_id']}/pir",
-            "relay": f"iot/zone/{config['zone_id']}/relay",
-            "camera": f"iot/zone/{config['zone_id']}/camera",
-            "telemetry": f"iot/device/{config['device_id']}/telemetry",
-            "status": f"iot/device/{config['device_id']}/status",
+            "pir": "events/motion",
+            "relay": f"devices/{config['device_id']}/status",
+            "camera": f"cameras/{config['device_id']}/frame",
+            "telemetry": f"devices/{config['device_id']}/telemetry",
+            "status": f"devices/{config['device_id']}/status",
         }
         
     def connect_mqtt(self):
@@ -191,16 +191,20 @@ class FakeSecuritySystem:
         return buffer.getvalue()
     
     def send_pir_event(self) -> bool:
-        """Enviar evento de detección PIR"""
+        """Enviar evento de detección PIR
+        
+        El worker espera:
+        {
+            "device_id": 1,
+            "timestamp": "2024-01-01T12:00:00",
+            "confidence": 0.95
+        }
+        """
+        confidence = round(random.uniform(0.7, 1.0), 2)
         payload = {
             "device_id": self.config["device_id"],
-            "zone_id": self.config["zone_id"],
-            "event_type": "motion",
             "timestamp": datetime.now().isoformat(),
-            "data": {
-                "motion_detected": True,
-                "sensitivity": random.randint(70, 100),
-            }
+            "confidence": confidence,
         }
         
         result = self.client.publish(
@@ -210,22 +214,29 @@ class FakeSecuritySystem:
         )
         
         if result.rc == 0:
-            print(f"🚶 PIR: Movimiento detectado (sensibilidad: {payload['data']['sensitivity']}%)")
+            print(f"🚶 PIR: Movimiento detectado (confianza: {confidence*100:.0f}%)")
             return True
         return False
     
     def send_relay_event(self, state: bool) -> bool:
-        """Enviar evento de cambio de relé"""
+        """Enviar evento de cambio de relé
+        
+        El worker espera:
+        {
+            "status": "online" | "offline" | "error",
+            "timestamp": "...",
+            "info": { ... }
+        }
+        """
         self.relay_state = state
         
         payload = {
-            "device_id": self.config["device_id"],
-            "zone_id": self.config["zone_id"],
-            "event_type": "relay_on" if state else "relay_off",
+            "status": "online" if state else "offline",
             "timestamp": datetime.now().isoformat(),
-            "data": {
+            "info": {
                 "relay_state": state,
                 "relay_id": 1,
+                "zone_id": self.config["zone_id"],
             }
         }
         
@@ -242,7 +253,17 @@ class FakeSecuritySystem:
         return False
     
     def send_camera_capture(self, with_person: bool = True) -> bool:
-        """Capturar y enviar imagen de la cámara"""
+        """Capturar y enviar imagen de la cámara
+        
+        El worker espera:
+        {
+            "event_id": 123,        // opcional
+            "zone_id": 1,           // opcional
+            "timestamp": "...",
+            "frame": "base64...",   // imagen en base64
+            "format": "jpeg"
+        }
+        """
         print("📸 CAMERA: Capturando imagen...")
         
         # Generar imagen falsa
@@ -250,17 +271,10 @@ class FakeSecuritySystem:
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
         payload = {
-            "device_id": self.config["device_id"],
             "zone_id": self.config["zone_id"],
-            "event_type": "capture",
             "timestamp": datetime.now().isoformat(),
-            "data": {
-                "image": image_base64,
-                "format": "jpeg",
-                "width": 640,
-                "height": 480,
-                "triggered_by": "motion",
-            }
+            "frame": image_base64,
+            "format": "jpeg",
         }
         
         result = self.client.publish(
@@ -276,16 +290,22 @@ class FakeSecuritySystem:
         return False
     
     def send_telemetry(self) -> bool:
-        """Enviar datos de telemetría (temperatura, humedad, etc.)"""
+        """Enviar datos de telemetría (temperatura, humedad, etc.)
+        
+        El worker espera datos planos (no nested):
+        {
+            "timestamp": "2024-01-01T12:00:00",
+            "temperature": 25.5,
+            "humidity": 60,
+            ...
+        }
+        """
         payload = {
-            "device_id": self.config["device_id"],
             "timestamp": datetime.now().isoformat(),
-            "data": {
-                "temperature": round(random.uniform(18, 28), 1),
-                "humidity": round(random.uniform(40, 70), 1),
-                "battery": random.randint(70, 100),
-                "wifi_signal": random.randint(-70, -30),
-            }
+            "temperature": round(random.uniform(18, 28), 1),
+            "humidity": round(random.uniform(40, 70), 1),
+            "battery": random.randint(70, 100),
+            "wifi_signal": random.randint(-70, -30),
         }
         
         result = self.client.publish(
@@ -295,17 +315,27 @@ class FakeSecuritySystem:
         )
         
         if result.rc == 0:
-            print(f"📊 TELEMETRY: T={payload['data']['temperature']}°C, H={payload['data']['humidity']}%")
+            print(f"📊 TELEMETRY: T={payload['temperature']}°C, H={payload['humidity']}%")
             return True
         return False
     
     def send_status(self) -> bool:
-        """Enviar estado del dispositivo"""
+        """Enviar estado del dispositivo
+        
+        El worker espera:
+        {
+            "status": "online" | "offline" | "error",
+            "timestamp": "...",
+            "info": { ... }
+        }
+        """
         payload = {
-            "device_id": self.config["device_id"],
-            "online": True,
-            "relay_state": self.relay_state,
+            "status": "online",
             "timestamp": datetime.now().isoformat(),
+            "info": {
+                "relay_state": self.relay_state,
+                "device_id": self.config["device_id"],
+            }
         }
         
         result = self.client.publish(
