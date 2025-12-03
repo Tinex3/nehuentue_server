@@ -47,6 +47,11 @@ class FakeSecuritySystem:
         self.relay_state = False
         self.event_count = 0
         
+        # Carpeta de imágenes personalizadas
+        self.images_dir = os.path.join(os.path.dirname(__file__), "images")
+        self.custom_images = self._load_custom_images()
+        self.image_index = 0
+        
         # Topics MQTT - Alineados con el worker
         self.topics = {
             "pir": "events/motion",
@@ -55,6 +60,65 @@ class FakeSecuritySystem:
             "telemetry": f"devices/{config['device_id']}/telemetry",
             "status": f"devices/{config['device_id']}/status",
         }
+    
+    def _load_custom_images(self) -> list:
+        """Cargar imágenes personalizadas de la carpeta images/"""
+        images = []
+        if os.path.exists(self.images_dir):
+            for filename in sorted(os.listdir(self.images_dir)):
+                if filename.lower().endswith(('.jpg', '.jpeg', '.png', '.gif', '.bmp')):
+                    filepath = os.path.join(self.images_dir, filename)
+                    images.append(filepath)
+            if images:
+                print(f"📁 Cargadas {len(images)} imágenes personalizadas de {self.images_dir}")
+            else:
+                print(f"📁 No hay imágenes en {self.images_dir}, usando imágenes generadas")
+        return images
+    
+    def _get_next_custom_image(self) -> bytes:
+        """Obtener la siguiente imagen personalizada (rotación circular)"""
+        if not self.custom_images:
+            return None
+        
+        filepath = self.custom_images[self.image_index]
+        self.image_index = (self.image_index + 1) % len(self.custom_images)
+        
+        try:
+            # Abrir y redimensionar imagen si es necesario
+            with Image.open(filepath) as img:
+                # Convertir a RGB si es necesario
+                if img.mode != 'RGB':
+                    img = img.convert('RGB')
+                
+                # Redimensionar si es muy grande (max 1280x960)
+                max_size = (1280, 960)
+                if img.size[0] > max_size[0] or img.size[1] > max_size[1]:
+                    img.thumbnail(max_size, Image.Resampling.LANCZOS)
+                
+                # Agregar overlay con timestamp
+                draw = ImageDraw.Draw(img)
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                try:
+                    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 16)
+                except:
+                    font = ImageFont.load_default()
+                
+                # Barra de información semi-transparente
+                width, height = img.size
+                draw.rectangle([0, 0, width, 30], fill=(0, 0, 0))
+                draw.text((10, 5), f"CAM-{self.config['device_id']} | {timestamp} | {os.path.basename(filepath)}", 
+                          fill=(255, 255, 255), font=font)
+                
+                # Convertir a JPEG bytes
+                buffer = io.BytesIO()
+                img.save(buffer, format='JPEG', quality=85)
+                print(f"📷 Usando imagen: {os.path.basename(filepath)}")
+                return buffer.getvalue()
+                
+        except Exception as e:
+            print(f"⚠️ Error cargando {filepath}: {e}")
+            return None
         
     def connect_mqtt(self):
         """Conectar al broker MQTT"""
@@ -266,8 +330,11 @@ class FakeSecuritySystem:
         """
         print("📸 CAMERA: Capturando imagen...")
         
-        # Generar imagen falsa
-        image_bytes = self.generate_fake_image(with_person)
+        # Usar imagen personalizada si existe, sino generar una falsa
+        image_bytes = self._get_next_custom_image()
+        if image_bytes is None:
+            image_bytes = self.generate_fake_image(with_person)
+        
         image_base64 = base64.b64encode(image_bytes).decode('utf-8')
         
         payload = {

@@ -99,6 +99,7 @@ services:
       AI_SERVICE_URL: http://ai:5001
     volumes:
       - ./worker:/app
+      - evidences_data:/app/evidences
     depends_on:
       db:
         condition: service_healthy
