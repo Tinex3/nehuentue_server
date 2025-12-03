@@ -1,5 +1,6 @@
 # Servicio IA - Sistema de Seguridad IoT
 Flask==3.0.0
+flask-cors==4.0.0
 opencv-python-headless==4.8.1.78
 numpy==1.26.2
 tflite-runtime==2.14.0
