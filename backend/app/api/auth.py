@@ -41,8 +41,8 @@ def register():
     db.session.commit()
     
     # Generar tokens
-    access_token = create_access_token(identity=user.user_id)
-    refresh_token = create_refresh_token(identity=user.user_id)
+    access_token = create_access_token(identity=str(user.user_id))
+    refresh_token = create_refresh_token(identity=str(user.user_id))
     
     return jsonify({
         'message': 'Usuario creado exitosamente',
@@ -67,8 +67,8 @@ def login():
     if not user or not user.check_password(data['password']):
         return jsonify({'error': 'Credenciales inválidas'}), 401
     
-    access_token = create_access_token(identity=user.user_id)
-    refresh_token = create_refresh_token(identity=user.user_id)
+    access_token = create_access_token(identity=str(user.user_id))
+    refresh_token = create_refresh_token(identity=str(user.user_id))
     
     return jsonify({
         'message': 'Login exitoso',
