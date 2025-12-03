@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ============================================
   # Base de datos PostgreSQL
@@ -34,13 +32,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - ./mqtt/acl:/mosquitto/config/acl:ro
-      - ./mqtt/passwd:/mosquitto/config/passwd:ro
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
     ports:
       - "1883:1883"   # MQTT
-      - "9001:9001"   # WebSocket
     networks:
       - iot_network
     healthcheck:
