@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Instalar dependencias del sistema para OpenCV
+# Instalar dependencias del sistema para OpenCV y herramientas
 RUN apt-get update && apt-get install -y \
     gcc \
     libpq-dev \
@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y \
     libsm6 \
     libxext6 \
     libxrender1 \
+    curl \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
 
 # Copiar requirements e instalar dependencias
@@ -19,6 +21,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código fuente y modelos
 COPY . .
+
+# Descargar modelo TFLite si no existe
+RUN if [ ! -f /app/models/detect.tflite ]; then \
+    cd /app/models && \
+    curl -sLo model.zip https://storage.googleapis.com/download.tensorflow.org/models/tflite/coco_ssd_mobilenet_v1_1.0_quant_2018_06_29.zip && \
+    unzip -o model.zip && \
+    rm model.zip && \
+    echo "Modelo descargado"; \
+    fi
 
 # Puerto de la aplicación
 EXPOSE 5001

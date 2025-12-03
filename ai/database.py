@@ -52,7 +52,7 @@ class Database:
                 conn.execute(
                     text("""
                         UPDATE evidences 
-                        SET ai_metadata = :ai_metadata::jsonb
+                        SET ai_metadata = CAST(:ai_metadata AS jsonb)
                         WHERE evidence_id = :evidence_id
                     """),
                     {
