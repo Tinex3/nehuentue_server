@@ -118,19 +118,20 @@ class Database:
     
     def create_event(self, device_id: int, zone_id: int, event_type: str, payload: dict = None) -> int:
         """Crear nuevo evento"""
+        import json
         session = self.get_session()
         try:
             result = session.execute(
                 text("""
                     INSERT INTO events (device_id, zone_id, event_type, payload)
-                    VALUES (:device_id, :zone_id, :event_type, :payload::jsonb)
+                    VALUES (:device_id, :zone_id, :event_type, CAST(:payload AS jsonb))
                     RETURNING event_id
                 """),
                 {
                     'device_id': device_id,
                     'zone_id': zone_id,
                     'event_type': event_type,
-                    'payload': str(payload) if payload else '{}'
+                    'payload': json.dumps(payload) if payload else '{}'
                 }
             )
             event_id = result.fetchone()[0]
@@ -147,12 +148,13 @@ class Database:
     def create_evidence(self, device_id: int, zone_id: int, event_id: int, 
                        file_path: str, ai_metadata: dict = None) -> int:
         """Crear nueva evidencia"""
+        import json
         session = self.get_session()
         try:
             result = session.execute(
                 text("""
                     INSERT INTO evidences (device_id, zone_id, event_id, file_path, ai_metadata)
-                    VALUES (:device_id, :zone_id, :event_id, :file_path, :ai_metadata::jsonb)
+                    VALUES (:device_id, :zone_id, :event_id, :file_path, CAST(:ai_metadata AS jsonb))
                     RETURNING evidence_id
                 """),
                 {
@@ -160,7 +162,7 @@ class Database:
                     'zone_id': zone_id,
                     'event_id': event_id,
                     'file_path': file_path,
-                    'ai_metadata': str(ai_metadata) if ai_metadata else None
+                    'ai_metadata': json.dumps(ai_metadata) if ai_metadata else None
                 }
             )
             evidence_id = result.fetchone()[0]
