@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Loading } from '../components/ui/Loading';
 import { Modal } from '../components/ui/Modal';
+import { AuthenticatedImage } from '../components/AuthenticatedImage';
 import { evidencesService } from '../services/evidencesService';
 import { Evidence } from '../types';
 
@@ -116,13 +117,10 @@ export const Evidences = () => {
                   >
                     {/* Image */}
                     <div className="relative aspect-video bg-gray-100">
-                      <img
+                      <AuthenticatedImage
                         src={evidencesService.getFileUrl(evidence.evidence_id)}
                         alt={`Evidencia ${evidence.evidence_id}`}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="24"%3EImagen no disponible%3C/text%3E%3C/svg%3E';
-                        }}
                       />
                       {hasAI && aiResult.persons_detected > 0 && (
                         <div className="absolute top-2 right-2">
@@ -179,13 +177,10 @@ export const Evidences = () => {
           <div className="space-y-4">
             {/* Image */}
             <div className="relative">
-              <img
+              <AuthenticatedImage
                 src={evidencesService.getFileUrl(selectedEvidence.evidence_id)}
                 alt={`Evidencia ${selectedEvidence.evidence_id}`}
                 className="w-full rounded-lg"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%23ddd" width="800" height="600"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" font-size="32"%3EImagen no disponible%3C/text%3E%3C/svg%3E';
-                }}
               />
             </div>
 
@@ -231,13 +226,15 @@ export const Evidences = () => {
 
             {/* Download Button */}
             <div className="flex justify-end">
-              <a
-                href={evidencesService.getFileUrl(selectedEvidence.evidence_id)}
-                download
+              <button
+                onClick={() => evidencesService.downloadFile(
+                  selectedEvidence.evidence_id,
+                  selectedEvidence.file_path?.split('/').pop()
+                )}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 📥 Descargar Imagen
-              </a>
+              </button>
             </div>
           </div>
         </Modal>
