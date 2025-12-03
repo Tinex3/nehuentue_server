@@ -176,18 +176,19 @@ class Database:
     
     def create_measurement(self, device_id: int, recorded_at: str, data: dict) -> int:
         """Crear nueva medición de telemetría"""
+        import json
         session = self.get_session()
         try:
             result = session.execute(
                 text("""
                     INSERT INTO measurements (device_id, recorded_at, data)
-                    VALUES (:device_id, :recorded_at, :data::jsonb)
+                    VALUES (:device_id, :recorded_at, CAST(:data AS jsonb))
                     RETURNING measurement_id
                 """),
                 {
                     'device_id': device_id,
                     'recorded_at': recorded_at,
-                    'data': str(data).replace("'", '"')
+                    'data': json.dumps(data)
                 }
             )
             measurement_id = result.fetchone()[0]
